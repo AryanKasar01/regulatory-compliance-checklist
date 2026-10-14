@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Regulatory Compliance Checklist</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}
+body{margin:0}.hero{background:#142747;color:white;padding:28px max(20px,calc((100% - 1050px)/2))}
+.hero small{color:#b7d3ff;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:8px 0;font-size:clamp(25px,4vw,36px)}.hero p{color:#d9e4f5;margin:0}
+main{max-width:1050px;margin:24px auto;padding:0 18px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.stat,.panel{background:white;border:1px solid #e0e7f0;border-radius:14px;padding:18px;box-shadow:0 3px 12px #1427470a}.stat span{color:#65738a;font-size:13px}.stat strong{display:block;font-size:26px;margin-top:6px}
+.layout{display:grid;grid-template-columns: minmax(250px, .8fr) minmax(0,1.6fr);gap:16px}.panel h2{font-size:18px;margin:0 0 14px}
+label{display:block;font-size:13px;font-weight:650;margin:12px 0 5px}input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;background:white}
+button{border:0;border-radius:8px;padding:10px 13px;background:#245bd6;color:white;font-weight:650;cursor:pointer}button.secondary{background:#e8eef8;color:#233653}button.danger{background:#b42318}button:disabled{opacity:.5}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}
+.record{border:1px solid #e2e8f0;border-radius:10px;padding:13px;margin:10px 0}.record h3{font-size:15px;margin:0 0 6px}.meta{font-size:13px;color:#64748b}.pill{display:inline-block;border-radius:99px;padding:4px 8px;font-size:11px;font-weight:700;margin-top:8px;background:#fff1c2;color:#855800}.pill.Complete{background:#d8f7e5;color:#146c43}.pill.Pending{background:#fff1c2;color:#855800}.pill.In-Progress{background:#dceaff;color:#174ea6}.empty{color:#6b7280;text-align:center;padding:28px}
+#message{margin:0 0 12px;color:#146c43;font-size:14px;min-height:18px}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:21px}}
+</style></head>
+<body>
+<header class="hero"><small>DevOps Mini Project</small><h1>Regulatory Compliance Checklist</h1><p>Track compliance tasks, owners, due dates and status in one place.</p></header>
+<main>
+<div class="stats">
+ <div class="stat"><span>Total records</span><strong id="total">0</strong></div>
+ <div class="stat"><span>Pending / in progress</span><strong id="open">0</strong></div>
+ <div class="stat"><span>Completed</span><strong id="done">0</strong></div>
+</div>
+<p id="message" role="status"></p>
+<div class="layout">
+<section class="panel"><h2 id="formHeading">Add compliance record</h2>
+<form id="recordForm">
+<input id="recordId" type="hidden">
+<label for="title">Task / requirement *</label><input id="title" required placeholder="e.g. Review access permissions">
+<label for="owner">Responsible team / owner *</label><input id="owner" required placeholder="e.g. IT Team">
+<label for="status">Status</label><select id="status"><option>Pending</option><option>In Progress</option><option>Complete</option></select>
+<label for="dueDate">Due date</label><input id="dueDate" type="date">
+<div class="actions"><button id="saveButton" type="submit">Add record</button><button class="secondary" id="cancelEdit" type="button" hidden>Cancel edit</button></div>
+</form></section>
+<section class="panel"><h2>Compliance records</h2>
+<div class="toolbar"><input id="search" placeholder="Search task, owner or status"><button class="secondary" id="refresh" type="button">Refresh</button></div>
+<div id="records"><div class="empty">Loading records…</div></div>
+</section></div>
+</main>
+<script>
+const api='/api/records';let allRecords=[];
+const $=id=>document.getElementById(id);
+async function request(url,options={}){const r=await fetch(url,{headers:{'Content-Type':'application/json'},...options});if(!r.ok){let t=await r.text();throw new Error(t||`HTTP ${r.status}`)}return r.status===204?null:r.json()}
+function msg(s){$('message').textContent=s;setTimeout(()=>{if($('message').textContent===s)$('message').textContent=''},3500)}
+function escapeHtml(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function load(){try{allRecords=await request(api);render()}catch(e){$('records').innerHTML='<div class="empty">Could not load records. Is the application running?</div>';msg('Error loading records: '+e.message)}}
+function render(){const q=$('search').value.toLowerCase();const rows=allRecords.filter(r=>(r.title+' '+r.owner+' '+r.status).toLowerCase().includes(q));
+$('total').textContent=allRecords.length;$('open').textContent=allRecords.filter(r=>r.status!=='Complete').length;$('done').textContent=allRecords.filter(r=>r.status==='Complete').length;
+$('records').innerHTML=rows.length?rows.map(r=>`<article class="record"><h3>${escapeHtml(r.title)}</h3><div class="meta">Owner: ${escapeHtml(r.owner)} · Due: ${escapeHtml(r.dueDate||'Not set')}</div><span class="pill ${r.status.replace(' ','-')}">${escapeHtml(r.status)}</span><div class="actions"><button class="secondary" onclick="editRecord(${r.id})">Edit</button><button class="danger" onclick="deleteRecord(${r.id})">Delete</button></div></article>`).join(''):'<div class="empty">No matching records. Add one or change your search.</div>'}
+$('recordForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('recordId').value;const data={title:$('title').value.trim(),owner:$('owner').value.trim(),status:$('status').value,dueDate:$('dueDate').value};try{await request(id?`${api}/${id}`:api,{method:id?'PUT':'POST',body:JSON.stringify(data)});resetForm();await load();msg(id?'Record updated successfully.':'Record added successfully.')}catch(err){msg('Could not save record: '+err.message)}});
+window.editRecord=id=>{const r=allRecords.find(x=>x.id===id);if(!r)return;$('recordId').value=r.id;$('title').value=r.title;$('owner').value=r.owner;$('status').value=r.status;$('dueDate').value=r.dueDate||'';$('formHeading').textContent='Update compliance record';$('saveButton').textContent='Save changes';$('cancelEdit').hidden=false;window.scrollTo({top:0,behavior:'smooth'})};
+window.deleteRecord=async id=>{if(!confirm('Delete this compliance record?'))return;try{await request(`${api}/${id}`,{method:'DELETE'});await load();msg('Record deleted.')}catch(e){msg('Delete failed: '+e.message)}};
+function resetForm(){$('recordForm').reset();$('recordId').value='';$('formHeading').textContent='Add compliance record';$('saveButton').textContent='Add record';$('cancelEdit').hidden=true}
+$('cancelEdit').addEventListener('click',resetForm);$('search').addEventListener('input',render);$('refresh').addEventListener('click',load);load();
+</script></body></html>

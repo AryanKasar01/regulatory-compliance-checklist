@@ -1,0 +1,25 @@
+---
+- name: Verify Regulatory Compliance Checklist deployment host
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      ansible.builtin.debug:
+        msg: "{{ docker_version.stdout }}"
+
+    - name: Check deployed checklist homepage
+      ansible.builtin.uri:
+        url: http://localhost:8084
+        method: GET
+        status_code: 200
+      register: checklist_http
+
+    - name: Confirm application is reachable
+      ansible.builtin.debug:
+        msg: "Checklist returned HTTP {{ checklist_http.status }}"
