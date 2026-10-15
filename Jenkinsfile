@@ -3,6 +3,10 @@ pipeline {
 tools {
     jdk 'JDK-21'
 }
+ 
+    environment {
+        PATH = "C:\\Users\\Aryan\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
+    }
     stages {
         stage('Checkout') {
             steps { checkout scm }
